@@ -4,4 +4,4 @@ pyPDF2
 langchain
 google-generativeai
 numpy
-dotenv
+python-dotenv
