@@ -4,7 +4,7 @@ Chat with multiple PDFs using Google's Generative AI Palm 2 and LangChain.
 
 ![Talk2PDF Screenshot](./venv/Screenshot_1.jpg)
 
-Visit the live app: [Talk2PDF](https://your-tal2pdf-website-url.com/)
+Visit the live app: [Talk2PDF](https://talk2pdf-sd.streamlit.app/)
 
 ## API Key
 
@@ -21,7 +21,7 @@ Visit [Generative AI - PALM](https://developers.generativeai.google/products/pal
 
 ## Usage
 
-1. Visit the [Talk2PDF website](https://your-tal2pdf-website-url.com/).
+1. Visit the [Talk2PDF website](https://talk2pdf-sd.streamlit.app/).
 2. Get your API key from [Generative AI - PALM](https://developers.generativeai.google/products/palm).
 3. Enter your API key in the app settings.
 4. Chat with multiple PDFs using the power of generative AI.
