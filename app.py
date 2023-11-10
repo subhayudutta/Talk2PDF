@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from PyPDF2 import PdfReader
-from dotenv import load_dotenv
+
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import google.generativeai as palm
 from langchain.embeddings import GooglePalmEmbeddings
@@ -11,8 +11,8 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 import os
 
-load_dotenv()
-os.environ['GOOGLE_API_KEY'] = os.getenv("OPENAI_API_KEY")
+
+os.environ['GOOGLE_API_KEY'] = st.secrets["OPENAI_API_KEY"]
 
 
 def get_pdf_text(pdf_docs):
