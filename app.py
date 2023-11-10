@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from PyPDF2 import PdfReader
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import google.generativeai as palm
 from langchain.embeddings import GooglePalmEmbeddings
@@ -10,10 +9,6 @@ from langchain.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 import os
-
-
-os.environ['GOOGLE_API_KEY'] = st.secrets["OPENAI_API_KEY"]
-
 
 def get_pdf_text(pdf_docs):
     text=""
@@ -49,21 +44,36 @@ def user_input(user_question):
             ans="**PDF Guru:** "+ message.content
             st.info(ans)
 
+def submit():
+    st.session_state.user_question = st.session_state.widget
+    st.session_state.widget = ""
+
 def main():
     st.set_page_config("Talk2PDF 📊")
     st.header("Talk2PDF: Conversations with PDF Guru 👁️‍🗨️")
-    user_question = st.text_input("Hey, Ask a Question from your PDF Files")
+    if "user_question" not in st.session_state:
+        st.session_state.user_question = ""
+    user_question = st.text_input("Hey, Ask a Question from your PDF Files",key="widget", on_change=submit)
+    user_question = st.session_state.user_question
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chatHistory" not in st.session_state:
         st.session_state.chatHistory = None
     if st.button("Find My Answer"):
         if user_question:
-            user_input(user_question)
+            user_input(user_question) 
         else:
-            st.write("Enter your question first")
+            st.write("Enter your question first") 
     with st.sidebar:
         st.title("Settings")
+        st.markdown("To get your API key, visit [Generative AI - PALM](https://developers.generativeai.google/products/palm)")
+        api_key = st.text_input("Enter your API Key:", type="password")
+        if st.button("Submit"):
+            if api_key:
+                st.success("API Key submitted successfully!")
+                os.environ['GOOGLE_API_KEY'] = api_key
+            else:
+                st.warning("Please enter a valid API Key.")
         st.subheader("Share your Documents for Upload")
         pdf_docs = st.file_uploader("Submit your PDF files and tap the 'Execute' button.", accept_multiple_files=True)
         if st.button("Execute"):
@@ -73,7 +83,6 @@ def main():
                 vector_store = get_vector_store(text_chunks)
                 st.session_state.conversation = get_conversational_chain(vector_store)
                 st.success("Done")
-
 
 if __name__ == "__main__":
     main()
