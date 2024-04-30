@@ -71,7 +71,8 @@ def main():
         if st.button("Submit"):
             if api_key:
                 st.success("API Key submitted successfully!")
-                os.environ['GOOGLE_API_KEY'] = api_key
+                api_key1 = st.secrets["google_api_key"]
+                os.environ['GOOGLE_API_KEY'] = api_key1
             else:
                 st.warning("Please enter a valid API Key.")
         st.subheader("Share your Documents for Upload")
