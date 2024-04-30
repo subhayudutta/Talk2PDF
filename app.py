@@ -49,6 +49,8 @@ def submit():
     st.session_state.widget = ""
 
 def main():
+    api_key1 = st.secrets["google_api_key"]
+    os.environ['GOOGLE_API_KEY'] = api_key1
     st.set_page_config("Talk2PDF 📊")
     st.header("Talk2PDF: Conversations with PDF Guru 👁️‍🗨️")
     if "user_question" not in st.session_state:
@@ -66,15 +68,15 @@ def main():
             st.write("Enter your question first") 
     with st.sidebar:
         st.title("Settings")
-        st.markdown("To get your API key, visit [Generative AI - PALM](https://developers.generativeai.google/products/palm)")
-        api_key = st.text_input("Enter your API Key:", type="password")
-        if st.button("Submit"):
-            if api_key:
-                st.success("API Key submitted successfully!")
-                api_key1 = st.secrets["google_api_key"]
-                os.environ['GOOGLE_API_KEY'] = api_key1
-            else:
-                st.warning("Please enter a valid API Key.")
+        # st.markdown("To get your API key, visit [Generative AI - PALM](https://developers.generativeai.google/products/palm)")
+        # api_key = st.text_input("Enter your API Key:", type="password")
+        # if st.button("Submit"):
+        #     if api_key:
+        #         st.success("API Key submitted successfully!")
+        #         api_key1 = st.secrets["google_api_key"]
+        #         os.environ['GOOGLE_API_KEY'] = api_key1
+        #     else:
+        #         st.warning("Please enter a valid API Key.")
         st.subheader("Share your Documents for Upload")
         pdf_docs = st.file_uploader("Submit your PDF files and tap the 'Execute' button.", accept_multiple_files=True)
         if st.button("Execute"):
