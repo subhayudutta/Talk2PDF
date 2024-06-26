@@ -2,7 +2,7 @@
 
 Chat with multiple PDFs using Google's Generative AI Gemini 1.5 pro and LangChain.
 
-![Talk2PDF Screenshot](./venv/Screenshot_1.jpg)
+![Talk2PDF Screenshot](./talk2PDF_screenshot.png)
 
 Visit the live app: [Talk2PDF](https://talk2pdf-sd.streamlit.app/)
 

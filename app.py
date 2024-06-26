@@ -1,92 +1,98 @@
-import streamlit as st
-import pandas as pd
+import os
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import google.generativeai as palm
-from langchain.embeddings import GooglePalmEmbeddings
-from langchain.llms import GooglePalm
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import streamlit as st
+import google.generativeai as genai
 from langchain.vectorstores import FAISS
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
-import os
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chains.question_answering import load_qa_chain
+from langchain.prompts import PromptTemplate
 
-def get_pdf_text(pdf_docs):
-    text=""
-    for pdf in pdf_docs:
-        pdf_reader= PdfReader(pdf)
+api_key1 = st.secrets["google_api_key"]
+os.environ['GOOGLE_API_KEY'] = api_key1
+genai.configure(api_key=api_key1)
+
+def extract_text_from_pdfs(pdf_files):
+    text_content = ""
+    for pdf in pdf_files:
+        pdf_reader = PdfReader(pdf)
         for page in pdf_reader.pages:
-            text+= page.extract_text()
-    return  text
+            text_content += page.extract_text()
+    return text_content
 
-def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
-    chunks = text_splitter.split_text(text)
-    return chunks
+def split_text_into_chunks(text):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
+    return splitter.split_text(text)
 
-def get_vector_store(text_chunks):
-    embeddings = GooglePalmEmbeddings()
-    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    return vector_store
+def create_vector_store(chunks):
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")  # type: ignore
+    vector_store = FAISS.from_texts(chunks, embedding=embeddings)
+    vector_store.save_local("faiss_index")
 
-def get_conversational_chain(vector_store):
-    llm=GooglePalm()
-    memory = ConversationBufferMemory(memory_key = "chat_history", return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=vector_store.as_retriever(), memory=memory)
-    return conversation_chain
+def create_conversational_chain():
+    prompt_template = """
+    Answer the question in detail based on the provided context. If the answer is not in the context, respond with "answer is not available in the context".\n\n
+    Context:\n {context}?\n
+    Question: \n{question}\n
+    Answer:
+    """
+    model = ChatGoogleGenerativeAI(model="gemini-pro", client=genai, temperature=0.3)
+    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    return load_qa_chain(llm=model, chain_type="stuff", prompt=prompt)
 
-def user_input(user_question):
-    response = st.session_state.conversation({'question': user_question})
-    st.session_state.chatHistory = response['chat_history']
-    for i, message in enumerate(st.session_state.chatHistory):
-        if i%2 == 0:
-            st.write("**User:** "+ message.content)
-        else:
-            ans="**PDF Guru:** "+ message.content
-            st.info(ans)
+def reset_chat_history():
+    st.session_state.messages = [{"role": "assistant", "content": "Upload some PDFs and ask me a question"}]
 
-def submit():
-    st.session_state.user_question = st.session_state.widget
-    st.session_state.widget = ""
+def handle_user_input(user_query):
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")  # type: ignore
+    vector_store = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
+    docs = vector_store.similarity_search(user_query)
+    chain = create_conversational_chain()
+    response = chain({"input_documents": docs, "question": user_query}, return_only_outputs=True)
+    return response
 
 def main():
-    api_key1 = st.secrets["google_api_key"]
-    os.environ['GOOGLE_API_KEY'] = api_key1
-    st.set_page_config("Talk2PDF 📊")
-    st.header("Talk2PDF: Conversations with PDF Guru 👁️‍🗨️")
-    if "user_question" not in st.session_state:
-        st.session_state.user_question = ""
-    user_question = st.text_input("Hey, Ask a Question from your PDF Files",key="widget", on_change=submit)
-    user_question = st.session_state.user_question
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "chatHistory" not in st.session_state:
-        st.session_state.chatHistory = None
-    if st.button("Find My Answer"):
-        if user_question:
-            user_input(user_question) 
-        else:
-            st.write("Enter your question first") 
+    st.set_page_config(page_title="Talk2PDF 📊")
+
     with st.sidebar:
-        st.title("Settings")
-        # st.markdown("To get your API key, visit [Generative AI - PALM](https://developers.generativeai.google/products/palm)")
-        # api_key = st.text_input("Enter your API Key:", type="password")
-        # if st.button("Submit"):
-        #     if api_key:
-        #         st.success("API Key submitted successfully!")
-        #         api_key1 = st.secrets["google_api_key"]
-        #         os.environ['GOOGLE_API_KEY'] = api_key1
-        #     else:
-        #         st.warning("Please enter a valid API Key.")
-        st.subheader("Share your Documents for Upload")
-        pdf_docs = st.file_uploader("Submit your PDF files and tap the 'Execute' button.", accept_multiple_files=True)
-        if st.button("Execute"):
-            with st.spinner("Processing"):
-                raw_text = get_pdf_text(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
-                vector_store = get_vector_store(text_chunks)
-                st.session_state.conversation = get_conversational_chain(vector_store)
-                st.success("Done")
+        st.title("Configuration")
+        api_key_input = st.sidebar.text_input("Enter your Gemini API Key (if available)", type="password", placeholder="If you have!")
+        temperature = st.sidebar.slider("Temperature", 0.0, 1.0, 0.8, 0.1)
+        model_selection = st.sidebar.selectbox("Select Model", ("gemini-1.5", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-1.5-flash"))
+
+        pdf_files = st.file_uploader("Upload your PDF Files: ", accept_multiple_files=True)
+        st.markdown("App built by Subhayu Dutta")
+
+        if st.button("Submit & Process"):
+            with st.spinner("Processing..."):
+                raw_text = extract_text_from_pdfs(pdf_files)
+                text_chunks = split_text_into_chunks(raw_text)
+                create_vector_store(text_chunks)
+                st.success("Processing complete")
+
+    st.title("Talk2PDF: Conversations with PDF Guru 👁️‍🗨️")
+    st.sidebar.button('Clear Chat History', on_click=reset_chat_history)
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "assistant", "content": "Upload some PDFs and ask me a question"}]
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+
+    if user_message := st.chat_input():
+        st.session_state.messages.append({"role": "user", "content": user_message})
+        with st.chat_message("user"):
+            st.write(user_message)
+
+    if st.session_state.messages[-1]["role"] != "assistant":
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                response = handle_user_input(user_message)
+                full_response = ''.join(response['output_text'])
+                st.write(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 if __name__ == "__main__":
     main()
-
